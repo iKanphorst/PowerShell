@@ -36,7 +36,7 @@ try {
     Exit 1
 }
 
-if ($deviceObj -ne $null){
+if ($null -ne $deviceObj){
     Write-Host "Sending sync signal to Intune Device" -ForegroundColor Green
     $deviceObj | Invoke-IntuneManagedDeviceSyncDevice -ErrorAction Stop -Verbose
 } else {
