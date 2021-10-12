@@ -1,0 +1,31 @@
+#Define DHCP Vendor Classes for UEFI
+$VendorClassUEFIx64 = @{
+Name = "PXEClient_x64UEFI"
+Description = "PXEClient_x64UEFI"
+Type = "Vendor"
+Data = "PXEClient:Arch:00007"
+}
+$VendorClassX86x64 = @{
+Name = "PXEClient_Legacy x68 & x86"
+Description = "PXEClient_Legacy x68 & x86"
+Type = "Vendor"
+Data = "PXEClient:Arch:00000"
+}
+#Import list with all DHCP server on a Name header
+$ADS = Import-Csv -Path "CSV List with ALL Dhcp Servers"
+#Create classes and policies for each DHCP Server on a server level
+foreach ($AD in $ADS){
+    if ($AD.Name -eq "CON-AD01.pjmt.local"){
+        $SCCM = "COLNIZA-SCCM.pjmt.local"
+        }else {
+            $SCCM = $AD.Name -replace "AD01","SCCM"
+        }
+    Add-DhcpServerv4Class -ComputerName $AD.Name -Name $VendorClassUEFIx64.Name -Type Vendor -Data $VendorClassUEFIx64.Data -Description $VendorClassUEFIx64.Description
+    Add-DhcpServerv4Class -ComputerName $AD.Name -Name $VendorClassX86x64.Name -Type Vendor -Data $VendorClassX86x64.Data -Description $VendorClassX86x64.Description
+    Add-DhcpServerv4Policy -ComputerName $AD.Name  -Name "PXEClient_x64UEFI" -Condition AND -VendorClass EQ,"PXEClient_x64UEFI*"
+    Add-DhcpServerv4Policy -ComputerName $AD.Name  -Name "PXEClient_Legacy x68 & x86" -Condition AND -VendorClass EQ,"PXEClient_Legacy x68 & x86*"
+    Set-DhcpServerv4OptionValue -ComputerName $AD.Name -PolicyName "PXEClient_x64UEFI" -optionID 66 -Value $SCCM
+    Set-DhcpServerv4OptionValue -ComputerName $AD.Name -PolicyName "PXEClient_x64UEFI" -optionID 67 -Value "SMSBoot\TJC00009\x64\wdsmgfw.efi"
+    Set-DhcpServerv4OptionValue -ComputerName $AD.Name -PolicyName "PXEClient_Legacy x68 & x86" -optionID 66 -Value $SCCM
+    Set-DhcpServerv4OptionValue -ComputerName $AD.Name -PolicyName "PXEClient_Legacy x68 & x86" -optionID 67 -Value "SMSBoot\TJC00009\x64\wdsnbp.com"
+}
