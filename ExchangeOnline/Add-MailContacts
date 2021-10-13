@@ -2,18 +2,25 @@ Import-Module ExchangeOnlineManagement
 Add-Type -AssemblyName System.Windows.Forms
 $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{ 
     InitialDirectory = [Environment]::GetFolderPath('Desktop') 
-    Title = 'Select file to import'
+    Title = 'Select magistrados.csv'
 }
 Connect-ExchangeOnline -Credential (Get-Credential) -Verbose
 Write-Host "Select the CSV file with users to add to DL" -ForegroundColor Green -BackgroundColor Black
 $null = $FileBrowser.ShowDialog()
-$Users = Import-Csv -Path $FileBrowser.filename
-$DL = Read-Host ("Type the email of the DL to add users to")
-try {
-    foreach ($User in $Users){
-        add-DistributionGroupMember -identity $DL -member $User.email -confirm:$False -verbose
-    }
+$Magistrados = Import-Csv -Path $FileBrowser.filename
+$FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{ 
+    InitialDirectory = [Environment]::GetFolderPath('Desktop') 
+    Title = 'Select servidores.csv'
 }
-catch {
-    Write-Host "$DL not found. Aborting..." -ForegroundColor Red -BackgroundColor Black
+$null = $FileBrowser.ShowDialog()
+$Servidores = Import-Csv -path $FileBrowser.filename
+$DLMagistrados = "tjmt.magistrados@365.tjmt.jus.br"
+$DLServidores = "tjmt.servidores@365.tjmt.jus.br"
+foreach ($Magistrado in $Magistrados){
+    New-MailContact -Name $Magistrado.Name -ExternalEmailAddress $Magistrado.Email
+    Add-DistributionGroupMember -identity $DLMagistrados -Member $Magistrado.Email -Confirm:$false
+}
+foreach ($Servidor in $Servidores){
+    New-MailContact -Name $Servidor.Name -ExternalEmailAddress $Servidor.Email
+    Add-DistributionGroupMember -identity $DLServidores -Member $Servidor.Email -Confirm:$false
 }
