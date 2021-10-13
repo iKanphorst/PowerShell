@@ -1,0 +1,19 @@
+Import-Module ExchangeOnlineManagement
+Add-Type -AssemblyName System.Windows.Forms
+$FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{ 
+    InitialDirectory = [Environment]::GetFolderPath('Desktop') 
+    Title = 'Select file to import'
+}
+Connect-ExchangeOnline -Credential (Get-Credential) -Verbose
+Write-Host "Select the CSV file with users to add to DL" -ForegroundColor Green -BackgroundColor Black
+$null = $FileBrowser.ShowDialog()
+$Users = Import-Csv -Path $FileBrowser.filename
+$DL = Read-Host ("Type the email of the DL to add users to")
+try {
+    foreach ($User in $Users){
+        add-DistributionGroupMember -identity $DL -member $User.email -confirm:$False -verbose
+    }
+}
+catch {
+    Write-Host "$DL not found. Aborting..." -ForegroundColor Red -BackgroundColor Black
+}
