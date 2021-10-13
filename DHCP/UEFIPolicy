@@ -28,4 +28,4 @@ foreach ($AD in $ADS){
     Set-DhcpServerv4OptionValue -ComputerName $AD.Name -PolicyName "PXEClient_x64UEFI" -optionID 67 -Value "SMSBoot\TJC00009\x64\wdsmgfw.efi"
     Set-DhcpServerv4OptionValue -ComputerName $AD.Name -PolicyName "PXEClient_Legacy x68 & x86" -optionID 66 -Value $SCCM
     Set-DhcpServerv4OptionValue -ComputerName $AD.Name -PolicyName "PXEClient_Legacy x68 & x86" -optionID 67 -Value "SMSBoot\TJC00009\x64\wdsnbp.com"
-}
+}#end
