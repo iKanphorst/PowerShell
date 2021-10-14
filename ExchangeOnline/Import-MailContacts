@@ -1,0 +1,434 @@
+<#
+    .SYNOPSIS
+        Imports mail contacts into Exchange / Exchange Online from a list provided as a CSV file
+
+    .DESCRIPTION
+        Imports mail contacts defined in a CSV-formatted import file into Exchange / Exchange Online. Supports both
+        traditional on-premises Exchange server (tested against 2013, expected to work with 2010)
+        and Exchange Online / Office 365. Exchange server type is specified in configuration file
+        or via parameter when running script.
+
+        For on-premise Exchange, invokes automatic discovery that connects to an Exchange server found in the 
+        domain using the current user's credentils. This requires the script be run on a domain-joined
+        computer (Windows 7/8/2008R2/2012+).
+
+        For Exchange Online / Office365, prompts for Office365 administrator credentials (username@example.com).
+        Using the domain in the username, the Exchange Online tenant account is discovered and connected to.
+
+        No additional software is required to run the script beyond a recent version of PowerShell (3+) and 
+        .NET Framework (4+). All Exchange functionality is automatically downloaded after connecting to server.
+
+        Script user must have required administration privileges to manage recipients in Exchange.
+
+        Requires several files as dependencies which are available in the download at:
+        https://automys.com/library/asset/exchange-and-office-365-mail-contact-import-using-powershell
+
+    .PARAMETER  ExchangeType
+        Defines which type of Exchange server to target. Valid options "OnPremise" and "ExchangeOnline". This
+        parameter is optional and is also read from the script's configuration file. The parameter overrides
+        the configuration file value if specified.
+
+    .PARAMETER  ContactsFileName
+        Name of CSV-formatted file in script directory that defines each contact as a row with columns for each contact property.
+        The column names must match the available Parameters defined for the New-MailContact and Set-Contact cmdlets, documented here:
+        https://technet.microsoft.com/en-us/library/bb124519(v=exchg.141).aspx
+        https://technet.microsoft.com/en-us/library/bb124535(v=exchg.141).aspx
+        ** ExternalEmailAddress and Name columns are required, all others are optional
+
+    .PARAMETER  CleanupFileName
+        Name of file that is produced with list of imported contacts. This is used by the cleanup script Remove-ImportedMailContacts.ps1.
+
+    .PARAMETER  ConfigurationFileName
+        Name of the XML configuration file in the script directory which defines the Exchange type.
+
+    .PARAMETER  EnableTraceLogging
+        Switch to enable trace logging to a file in the same directory as the script. Enabled by default.
+
+    .EXAMPLE
+        To import contacts using parameter and configuration defaults (On-premise Exchange):
+        
+        .\Import-MailContacts.ps1
+
+    .EXAMPLE
+        To import contacts into Exchange Online / Office365:
+        
+        .\Import-MailContacts.ps1 -ExchangeType ExchangeOnline
+
+    .INPUTS
+        None.
+
+    .OUTPUTS
+        No objects returned.
+
+    .NOTES
+        For more details and implementation guidance, see the associated documentation at:
+        https://automys.com/library/asset/exchange-and-office-365-mail-contact-import-using-powershell
+#>
+
+
+[CmdletBinding()]
+Param(
+    [ValidateSet("OnPremise","ExchangeOnline")]
+    [string]$ExchangeType,
+
+    [string]$ContactsFileName = "Contacts.csv",
+
+    [string]$CleanupFileName = "cleanuplist.txt",
+
+    [string]$ConfigurationFileName = "import_configuration.xml",
+
+    [switch]$EnableTraceLogging = $true,
+
+    $Command # Placeholder parameter to workaround Windows 7 right-click run bug. Not used.
+)
+
+$HELPER_FUNCTIONS_FILE = "HelperFunctions.ps1"
+
+Clear-Host
+
+
+
+# Determine script path
+if($PSScriptRoot.Length -gt 0)
+{
+    $scriptPath = $PSScriptRoot + "\"
+}
+else
+{
+    $scriptPath = (Get-Location | select -ExpandProperty Path) + "\"
+}
+
+# Test access to log file, create new name if denied (likely created by another user or process)
+$logPath = $scriptPath + "import.log"
+try 
+{ 
+    [IO.File]::OpenWrite($logPath).Close() 
+}
+catch 
+{
+    $logSuffix = Get-Date -Format "yyyyMMddhhMMss"
+    $logPath = $scriptPath + "import-$logSuffix.log"
+}
+
+# Check for helper functions script file
+$helperFilePath = $scriptPath + $HELPER_FUNCTIONS_FILE
+if((Test-Path $helperFilePath) -eq $false)
+{
+    throw "Required file [$helperFilePath] not found"
+}
+
+# Load helper functions file
+. $helperFilePath
+
+# Get configuration from file if present
+$configurationFilePath = $scriptPath + $ConfigurationFileName
+[xml]$configFile = Get-Content $ConfigurationFilePath
+
+AppendLog -Message "Script started"
+AppendLog -Message "Running as user [$([Environment]::UserDomainName)\$([Environment]::UserName)]"
+AppendLog -Message "Checking for required files"
+
+try
+{
+    # Check PowerShell and .NET version
+    if($PSVersionTable.PSVersion.Major -lt 3 -or $PSVersionTable.CLRVersion.Major -lt 4)
+    {
+        throw "Recent versions of PowerShell (3+) and the .NET Framework (4+) must be installed to run this script. `r`n `
+                Please update using Windows Update or by downloading from the following locations: `r`n `
+                PowerShell: http://www.microsoft.com/en-us/download/details.aspx?id=40855 `r`n `
+                .NET Framework: http://www.microsoft.com/en-us/download/details.aspx?id=30653 `r`n"
+
+    }
+
+    # Validate import file
+    $contactsFilePath = $scriptPath + $ContactsFileName
+    $requiredProperties = "ExternalEmailAddress", "Name"
+    ValidateCSVFile -FilePath $contactsFilePath -RequiredProperties $requiredProperties
+
+    # Load required Exchange binaries, which come from Exchange installation files bin directory.
+    $requiredExchangeFiles = "Microsoft.Exchange.Data.dll", "Microsoft.Exchange.Configuration.ObjectModel.dll"
+
+    foreach($file in $requiredExchangeFiles)
+    {
+        $filePath = $scriptPath + $file
+        if(Test-Path -Path $filePath)
+        {
+            [System.Reflection.Assembly]::LoadFrom($filePath) | Out-Null  
+        }
+        else
+        {
+            throw "Required Exchange binary file not found in script directory: $file"
+        }
+    }
+
+    # Verify Microsoft helper function files from Exchange Management Shell
+    $helperFiles = "CommonConnectFunctions.ps1", "ConnectFunctions.ps1"
+
+    foreach($file in $helperFiles)
+    {
+        $filePath = $scriptPath + $file
+        if((Test-Path -Path $filePath) -eq $false)
+        {
+            throw "Required helper function file not found in script directory: $file"
+        }
+    }
+
+    # Load Microsoft helper function files
+    . $scriptPath"CommonConnectFunctions.ps1"
+    . $scriptPath"ConnectFunctions.ps1"
+
+    # Check configured Exchange type (OnPremise or ExchangeOnline) if not specified as script parameter
+    if($ExchangeType -eq $null -or $ExchangeType.Length -eq 0)
+    {
+        if($configFile -ne $null -and $configFile.Settings -ne $null -and $configFile.Settings.ExchangeType.Length -gt 0)
+        {
+            $ExchangeType = $configFile.Settings.ExchangeType.Trim()
+            AppendLog -Message "Configured to connect to Exchange server of type [$exchangeType]"
+        }
+        else
+        {
+            $ExchangeType = "OnPremise"
+            AppendLog -Message "No Exchange type found in configuration file, defaulting to [$exchangeType]"
+        }
+    }
+
+    Write-Host "Connecting to Exchange..."
+
+    switch($ExchangeType)
+    {
+        "OnPremise" {
+            # Attempt Exchange connection using automatic discovery of server and authenticating with current user's credentials
+            AppendLog -Message "Discovering and connecting to Exchange server"
+            Connect-ExchangeServer -auto -ClientApplication:ManagementShell
+
+            # Check whether session was established
+            if($remoteSession -eq $null -or ($remoteSession | where ConfigurationName -eq "Microsoft.Exchange") -eq $null)
+            {
+                throw "Failed to connect to an Exchange server in the environment"
+            }
+
+            $exchangeUser = "$([Environment]::UserDomainName)\$([Environment]::UserName)"
+            AppendLog -Message "Successfully connected to Exchange server [$($remoteSession.ComputerName)] as [$([Environment]::UserDomainName)\$([Environment]::UserName)]"
+        }
+        "ExchangeOnline" {
+            # Prompt for Office365 credentials with access to administer Exchange Online
+            $error.Clear()
+            $userCredential = Get-Credential -Message "Enter Office365 administrator username and password." -UserName "username@example.com"
+            $remoteSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $userCredential -Authentication Basic -AllowRedirection -ErrorAction SilentlyContinue
+        
+            # Check whether login failed
+            if($error.Count -gt 0)
+            {
+                if($error[0].Exception.Message.ToLower() -like "*access denied*")
+                {
+                    throw "Failed to log in to Exchange Online / Office365. Access was denied. Please verify credentials and try again."
+                }
+                else
+                {
+                    throw "Failed to log in to Exchange Online / Office365. Error details: [$($error[0].Exception.Message)]"
+                }
+            }
+            elseif($remoteSession -eq $null)
+            {
+                 throw "Unknown failure during attempt to log in to Exchange Online / Office365."
+            }
+
+            # Load Exchange commands into local context
+            Import-PSSession $remoteSession -DisableNameChecking | Out-Null
+
+            $exchangeUser = $userCredential.UserName
+            AppendLog -Message "Successfully connected to Exchange Online as [$($userCredential.UserName)]"
+        }
+    }
+
+    # Check whether connected user has permission to create contacts
+    if((Get-Command | where {$_.Name -eq "New-MailContact"}) -eq $null)
+    {
+        throw "Connected user [$exchangeUser] does not appear to have permission to create contacts in Exchange. Must be a member of an admin role that includes mail recipient management"
+    }
+
+    Write-Host "Connection Succeeded!" -ForegroundColor Green
+
+    # Create a test contact to confirm access and location
+    $randomIndex = Get-Random -Minimum 10000 -Maximum 99999
+    $testContactName = "TestImportContact$randomIndex"
+    $testContactAddress = $testContactName + "@import.test"
+    $testResult = New-MailContact -ExternalEmailAddress $testContactAddress -Name $testContactName -DisplayName $testContactName
+
+    # Verify result
+    if($testResult -eq $null)
+    {
+        throw "Unable to create a test contact"
+    }
+    $importLocation = $testResult.DistinguishedName -replace "CN=$testContactName,",""
+
+    # Remove test contact
+    Remove-MailContact -Identity $testContactAddress -Confirm:$false
+
+    # Determine directory import location
+    if($configFile -ne $null -and $configFile.Settings -ne $null -and $configFile.Settings.ImportDirectoryLocation.Length -gt 0)
+    {
+        $importLocation = $configFile.Settings.ImportDirectoryLocation.Trim()
+        AppendLog -Message "Importing into configuration file specified Active Directory container [$importLocation]"
+    }
+    else
+    {
+        AppendLog -Message "Importing into default Active Directory container [$importLocation]"
+    }
+
+    # Import list of contacts from file
+    $contactList = Import-Csv $contactsFilePath
+
+    AppendLog -Message "Read [$($contactList.Count)] contact entries from import file"
+
+    # Prompt the user for import confirmation
+    $title = "Confirm Import"
+    $message = "Do you want to import $($contactList.Count) new mail contacts into Exchange and the Active Directory location [$importLocation] ?"
+    $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes","Imports new contacts"
+    $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No","Cancels the script"
+    $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+    $result = $host.ui.PromptForChoice($title, $message, $options, 0) 
+
+    switch ($result)
+    {
+        0 {
+            Write-Host "`nOK, giddy up..."
+            AppendLog -Message "User confirmed import, proceeding."
+        }
+        1 {
+            Write-Host "`nNo worries. Action cancelled."
+            AppendLog -Message "User cancelled import. Exiting script."
+            # Clean up remote Exchange session(s)
+            Remove-PSSession *
+            return
+        }
+    }
+
+    # Create new contacts
+    $resultList = @()
+    $i = 0
+    foreach($contact in $contactList)
+    {
+        # Create empty result object
+        $result = "" | select ResultStatus,ContactAddress,Details
+
+        # Check whether email address is already in use before importing
+        if((Get-MailContact -Identity $contact.ExternalEmailAddress -ErrorAction SilentlyContinue ) -eq $null)
+        {
+            # Show progress
+            Write-Progress -Activity "Importing..." -status "Creating contact $($contact.ExternalEmailAddress)" -PercentComplete (++$i/$contactList.Count*100)
+        
+            # Reset errors
+            $error.Clear()
+            $creationError = ""
+
+            # Create contact
+            New-MailContact -ExternalEmailAddress $contact.ExternalEmailAddress -Name $contact.Name -DisplayName $contact.Name -OrganizationalUnit $importLocation  `
+                            -FirstName $contact.FirstName -LastName $contact.LastName | Out-Null
+
+            if($error[0] -ne $null)
+            {
+                $creationError = $error[0].Exception.Message
+            }
+        
+            # Get contact back to verify result
+            $newContact = Get-MailContact -Identity $contact.ExternalEmailAddress -ErrorAction SilentlyContinue
+            if($newContact -ne $null)
+            {
+                # Contact was created successfully. Now, we update the various properties provided.
+                # Build list of property values for the contact to provide as parameters to update contact with Set-Contact
+                # Exclude null/empty values
+                $propertyList = $contact.PSObject.Properties | where {$_.Name -notmatch "ExternalEmailAddress|Name|HideFromAddressLists"} | select -ExpandProperty Name
+                $parameterTable = @{}
+                foreach($propertyName in $propertyList)
+                {
+                    $propertyValue = $contact.PSObject.Properties | where {$_.Name -eq $propertyName} | select -ExpandProperty Value
+                    if($propertyValue.Length -gt 0)
+                    {
+                        $parameterTable.Add($propertyName, $propertyValue)
+                    }
+                }
+
+                # Build command string from parameter table
+                $commandString = "Set-Contact -Identity $($contact.ExternalEmailAddress) -ErrorAction Continue "
+                $parameterTable.GetEnumerator() | foreach {$commandString += "-$($_.Name) `"$($_.Value)`" "}
+
+                # Execute the generated command string, which will look something like:
+                #    "Set-Contact -Identity chrisn@fabrikam.com -ErrorAction Continue -CountryOrRegion "US" -Company "Fabrikam" -Pager "555-1212" -HomePhone "123-987-6543" 
+                #      -Title "Head Engineer" -Notes "Good engineer" -Fax "123-4567" -StreetAddress "PO Box 1234" -PostalCode "80111" -MobilePhone "303-801-2929" -StateorProvince "CO" -Office "31/1665" -City "Greeley""
+                $updateErrors = $null
+                Invoke-Expression $commandString -ErrorVariable updateErrors
+
+                # Hide from address lists if specified
+                if($contact.HideFromAddressLists.ToLower() -eq "true")
+                {
+                    Set-MailContact -Identity $contact.ExternalEmailAddress -HiddenFromAddressListsEnabled $true
+                }
+
+                # Set result status based on presence of errors from set commands
+                if($updateErrors -eq $null -or $updateErrors.Count -eq 0)
+                {
+                    $result.ResultStatus = "Success"
+                    $result.ContactAddress = $newContact.PrimarySmtpAddress
+                    $result.Details = "Added contact at directory location [$($newContact.DistinguishedName)] in address lists [$($newContact.AddressListMembership -join ",")]"
+                    $resultList += $result
+                }
+                else
+                {
+                    $result.ResultStatus = "WARNING"
+                    $result.ContactAddress = $newContact.PrimarySmtpAddress
+                    # Combine possible multiple errors into one string
+                    $warningString = ""
+                    $updateErrors.GetEnumerator() | foreach {$warningString += $_.Exception.Message + ";"}
+                    $result.Details = "Contact added with warnings. Possible problem with CSV data format. Error details: [$($warningString.Trim(";"))]"
+                    $resultList += $result
+                }
+            }
+            else
+            {
+                $result.ResultStatus = "FAILED"
+                $result.ContactAddress = $contact.ExternalEmailAddress
+                $result.Details = "Error creating contact. Details: [$creationError]"
+                $resultList += $result
+            }
+        }
+        else
+        {
+            $result.ResultStatus = "WARNING"
+            $result.ContactAddress = $contact.ExternalEmailAddress
+            $result.Details = "Address already exists. Contact not added"
+            $resultList += $result
+        }
+    }
+
+    $cleanupFilePath = $scriptPath + $CleanupFileName
+
+    $resultList | foreach {
+        # Record in general trace log
+        AppendLog -Message ($_.ResultStatus + " | " + $_.ContactAddress + " | " + $_.Details)
+
+        # Record successes in cleanup log for later removal
+        if($_.ResultStatus -eq "Success")
+        {
+            Add-Content -Path $cleanupFilePath -Value $_.ContactAddress
+        }
+    }
+
+    # Clean up remote Exchange session(s)
+    Remove-PSSession *
+
+    # Show results dialog
+    $resultList | Out-GridView -Title "Import results" -Wait
+}
+catch 
+{
+    AppendLog -Message "ERROR: $($error[0].Exception.Message)"
+    if($EnableTraceLogging -eq $true)
+    {
+        notepad.exe $logPath
+    }
+}
+finally
+{
+    AppendLog -Message "Script finished"
+}
