@@ -18,26 +18,27 @@ $DLMagistrados = "tjmt.magistrados@365.tjmt.jus.br"
 $DLServidores = "tjmt.servidores@365.tjmt.jus.br"
 $DLTodos = "todostjmt@365.tjmt.jus.br"
 foreach ($Magistrado in $Magistrados){
-    if ((Get-MailContact -Identity $Magistrado.Email) -eq $false) {
+    if ((Get-MailContact -Identity $Magistrado.Email) -eq $true) {
+        Write-Host "Contact $Magistrado.Name already created. Skipping..." -ForegroundColor Yellow
+        Add-DistributionGroupMember -identity $DLTodos -Member $Magistrado.Email -Confirm:$false -ErrorAction SilentlyContinue
+    }
+    else {
         Write-Host "Contact $Magistrado.Name not Found. Creating..." -ForegroundColor Green
         New-MailContact -Name $Magistrado.Name -ExternalEmailAddress $Magistrado.Email -ErrorAction SilentlyContinue
         Add-DistributionGroupMember -identity $DLMagistrados -Member $Magistrado.Email -Confirm:$false -ErrorAction SilentlyContinue
         Add-DistributionGroupMember -identity $DLTodos -Member $Magistrado.Email -Confirm:$false -ErrorAction SilentlyContinue
     }
-    else {
-        Write-Host "Contact $Magistrado.Namealready created. Skipping..." -ForegroundColor Yellow
-        Add-DistributionGroupMember -identity $DLTodos -Member $Magistrado.Email -Confirm:$false -ErrorAction SilentlyContinue
-    }
 }
 foreach ($Servidor in $Servidores){
-    if ((Get-MailContact -Identity $Servidor.Email) -eq $false) {
-        Write-Host "Contact $Servidor.Name not Found. Creating..." -ForegroundColor Green
-        New-MailContact -Name $Servidor.Name -ExternalEmailAddress $Servidor.Email -ErrorAction SilentlyContinue
-        Add-DistributionGroupMember -identity $DLServidores -Member $Servidor.Email -Confirm:$false -ErrorAction SilentlyContinue
+    if ((Get-MailContact -Identity $Servidor.Email) -eq $true) {
+        Write-Host "$Servidor.Email already created. Skipping..." -ForegroundColor Yellow
         Add-DistributionGroupMember -identity $DLTodos -Member $Servidor.Email -Confirm:$false -ErrorAction SilentlyContinue
     }
     else {
-        Write-Host "$Servidor.Email already created. Skipping..." -ForegroundColor Yellow
+
+        Write-Host "Contact $Servidor.Name not Found. Creating..." -ForegroundColor Green
+        New-MailContact -Name $Servidor.Name -ExternalEmailAddress $Servidor.Email -ErrorAction SilentlyContinue
+        Add-DistributionGroupMember -identity $DLServidores -Member $Servidor.Email -Confirm:$false -ErrorAction SilentlyContinue
         Add-DistributionGroupMember -identity $DLTodos -Member $Servidor.Email -Confirm:$false -ErrorAction SilentlyContinue
     }
 }
