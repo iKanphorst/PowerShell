@@ -1,7 +1,7 @@
 Import-Module ExchangeOnlineManagement
 Add-Type -AssemblyName System.Windows.Forms
 $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{ 
-    InitialDirectory = [Environment]::GetFolderPath('Documents') 
+    InitialDirectory = [Environment]::GetFolderPath('Desktop') 
     Title = 'Select magistrados.csv'
 }
 Connect-ExchangeOnline -Credential (Get-Credential) -Verbose
@@ -9,7 +9,7 @@ Write-Host "Select the CSV file with users to add to DL" -ForegroundColor Green 
 $null = $FileBrowser.ShowDialog()
 $Magistrados = Import-Csv -Path $FileBrowser.filename
 $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{ 
-    InitialDirectory = [Environment]::GetFolderPath('Documents') 
+    InitialDirectory = [Environment]::GetFolderPath('Desktop') 
     Title = 'Select servidores.csv'
 }
 $null = $FileBrowser.ShowDialog()
