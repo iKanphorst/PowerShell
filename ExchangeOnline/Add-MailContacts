@@ -4,7 +4,7 @@ $FileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{
     InitialDirectory = [Environment]::GetFolderPath('Desktop') 
     Title = 'Select magistrados.csv'
 }
-Connect-ExchangeOnline -Credential (Get-Credential) -Verbose
+Connect-ExchangeOnline -Credential (Get-Credential)
 Write-Host "Select the CSV file with users to add to DL" -ForegroundColor Green -BackgroundColor Black
 $null = $FileBrowser.ShowDialog()
 $Magistrados = Import-Csv -Path $FileBrowser.filename
@@ -18,27 +18,26 @@ $DLMagistrados = "tjmt.magistrados@365.tjmt.jus.br"
 $DLServidores = "tjmt.servidores@365.tjmt.jus.br"
 $DLTodos = "todostjmt@365.tjmt.jus.br"
 foreach ($Magistrado in $Magistrados){
-    if ((Get-MailContact -Identity $Magistrado.Email) -eq $true) {
-        Write-Host "Contact $Magistrado.Name already created. Skipping..." -ForegroundColor Yellow
-        Add-DistributionGroupMember -identity $DLTodos -Member $Magistrado.Email -Confirm:$false -ErrorAction SilentlyContinue
+    if (Get-MailContact -Identity $Magistrado.Email) {
+        Write-Host "Contact $Magistrado already created. Skipping..." -ForegroundColor Yellow
+        Add-DistributionGroupMember -identity $DLTodos -Member $Magistrado.Email
     }
     else {
-        Write-Host "Contact $Magistrado.Name not Found. Creating..." -ForegroundColor Green
-        New-MailContact -Name $Magistrado.Name -ExternalEmailAddress $Magistrado.Email -ErrorAction SilentlyContinue
-        Add-DistributionGroupMember -identity $DLMagistrados -Member $Magistrado.Email -Confirm:$false -ErrorAction SilentlyContinue
-        Add-DistributionGroupMember -identity $DLTodos -Member $Magistrado.Email -Confirm:$false -ErrorAction SilentlyContinue
+        Write-Host "Contact $Magistrado not Found. Creating..." -ForegroundColor Green
+        New-MailContact -Name $Magistrado.Name -ExternalEmailAddress $Magistrado.Email
+        Add-DistributionGroupMember -identity $DLMagistrados -Member $Magistrado.Email -Confirm:$false
+        Add-DistributionGroupMember -identity $DLTodos -Member $Magistrado.Email -Confirm:$false
     }
 }
 foreach ($Servidor in $Servidores){
-    if ((Get-MailContact -Identity $Servidor.Email) -eq $true) {
-        Write-Host "$Servidor.Email already created. Skipping..." -ForegroundColor Yellow
-        Add-DistributionGroupMember -identity $DLTodos -Member $Servidor.Email -Confirm:$false -ErrorAction SilentlyContinue
-    }
-    else {
-
-        Write-Host "Contact $Servidor.Name not Found. Creating..." -ForegroundColor Green
-        New-MailContact -Name $Servidor.Name -ExternalEmailAddress $Servidor.Email -ErrorAction SilentlyContinue
-        Add-DistributionGroupMember -identity $DLServidores -Member $Servidor.Email -Confirm:$false -ErrorAction SilentlyContinue
-        Add-DistributionGroupMember -identity $DLTodos -Member $Servidor.Email -Confirm:$false -ErrorAction SilentlyContinue
+    if (Get-MailContact -Identity $Servidor.Email) {
+        Write-Host "$Servidor already created. Skipping..." -ForegroundColor Yellow
+        Add-DistributionGroupMember -identity $DLTodos -Member $Servidor.Email -Confirm:$false
+    } else {
+        Write-Host "Contact $Servidor not Found. Creating..." -ForegroundColor Green
+        New-MailContact -Name $Servidor.Name -ExternalEmailAddress $Servidor.Email
+        Add-DistributionGroupMember -identity $DLServidores -Member $Servidor.Email -Confirm:$false
+        Add-DistributionGroupMember -identity $DLTodos -Member $Servidor.Email -Confirm:$false
     }
 }
+Disconnect-ExchangeOnline
