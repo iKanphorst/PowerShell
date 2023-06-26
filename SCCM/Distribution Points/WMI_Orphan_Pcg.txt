@@ -1,0 +1,33 @@
+strSiteCode = "SITE_CODE"  ' Replace with your SCCM site server code
+strSiteServerName = "SITE_SERVER_NAME"  ' Replace with your SCCM site server name
+
+Set locator = CreateObject("WbemScripting.SWbemLocator")
+Set provider = locator.ConnectServer(".", "root\sms\site_" & strSiteCode)
+
+' Get the site server object
+Set siteServer = provider.ExecQuery("SELECT * FROM SMS_SCI_SiteDefinition WHERE ServerName = '" & strSiteServerName & "'").ItemIndex(0)
+
+' Get the site server ID
+strSiteServerID = siteServer.SiteID
+
+' Get all distribution points associated with the site server
+Set distPoints = provider.ExecQuery("SELECT * FROM SMS_SCI_Component WHERE SiteCode = '" & strSiteCode & "' AND SiteID = '" & strSiteServerID & "' AND ComponentType = 12")
+
+' Loop through each distribution point and remove orphan packages
+For Each distPoint In distPoints
+    distPointName = distPoint.ServerName
+    
+    ' Connect to the distribution point
+    Set dpProvider = locator.ConnectServer(distPointName, "root\sms\site_" & strSiteCode)
+    
+    ' Get the packages associated with the distribution point
+    Set packages = dpProvider.ExecQuery("SELECT * FROM SMS_DistributionPoint WHERE SiteCode = '" & strSiteCode & "' AND PackageID IS NULL AND ServerNALPath LIKE '\\\\" & distPointName & "\\%'")
+    
+    ' Remove the orphan packages from the distribution point
+    For Each package In packages
+        dpProvider.Delete "SMS_DistributionPoint.PackageID='" & package.PackageID & "',ServerNALPath='" & package.ServerNALPath & "'"
+        WScript.Echo "Removed orphan package: " & package.PackageID & " from distribution point: " & distPointName
+    Next
+Next
+
+WScript.Echo "Orphan package removal complete!"

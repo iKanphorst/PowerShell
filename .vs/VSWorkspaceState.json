@@ -1,10 +1,14 @@
 {
   "ExpandedNodes": [
     "",
+    "\\AIP",
+    "\\DHCP",
+    "\\ExchangeOnline",
+    "\\Intune",
     "\\Office Updates",
     "\\Office365",
-    "\\Office365\\ADPrep"
+    "\\Office365\\ADPrep",
+    "\\SCCM"
   ],
-  "SelectedNode": "\\Office Updates\\Office-Update.ps1",
   "PreviewInSolutionExplorer": false
 }
