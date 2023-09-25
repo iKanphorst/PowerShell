@@ -28,32 +28,28 @@ Event Message: $message
     # You can add additional actions here, such as sending an email notification.
 }
 
-# Create an event log subscription to monitor for LDAP events
-$subscription = New-WinEvent -LogName "Security" -FilterXPath @"
-<QueryList>
-  <Query Id="0" Path="Security">
-    <Select Path="Security">
-      *[System[(EventID=$ldapEventId)]]
-    </Select>
-  </Query>
-</QueryList>
-"@
-
-# Register an event handler for LDAP events
-Register-WinEvent -SourceIdentifier "UnencryptedLDAPEvent" -LogName "Security" -ProviderName "Microsoft-Windows-Security-Auditing" -Action {
-    $event = $event.MessageData[0]
-    Handle-LdapEvent $event
-}
-
 # Start monitoring for LDAP events
 Write-Host "Monitoring for unencrypted LDAP traffic (Event ID $ldapEventId). Press Ctrl+C to exit."
 
 # Keep the script running
 try {
     while ($true) {
+        # Get LDAP events from the Security log
+        $ldapEvents = Get-WinEvent -LogName "Security" -FilterXPath @"
+        <QueryList>
+          <Query Id="0" Path="Security">
+            <Select Path="Security">
+              *[System[(EventID=$ldapEventId)]]
+            </Select>
+          </Query>
+        </QueryList>
+"@
+        foreach ($event in $ldapEvents) {
+            Handle-LdapEvent $event
+        }
         Start-Sleep -Seconds 5
     }
 }
 catch {
-    Unregister-WinEvent -SourceIdentifier "UnencryptedLDAPEvent"
+    # Handle any errors here
 }
