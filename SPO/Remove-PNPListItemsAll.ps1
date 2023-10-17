@@ -1,4 +1,4 @@
-Connect-PnPOnline -Url <URL Here> -useWebLogin  
+Connect-PnPOnline -Url "" -useWebLogin  
 Get-PnPListItem -List 'Preservation Hold Library' -PageSize 1 | ForEach-Object {  
        $Filename = $_.FieldValues.FileLeafRef  
        Write-Host "Removing $Filename" -ForegroundColor Cyan  
