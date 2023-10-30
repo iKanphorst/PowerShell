@@ -4,18 +4,16 @@ Install-Module SharePointPnPPowerShellOnline
 # Set variables
 $tenant = "yourtenant"
 $username = "adminaccount@yourtenant.onmicrosoft.com"
-$securePassword = ConvertTo-SecureString "YourPassword" -AsPlainText -Force
-$cred = New-Object -TypeName System.Management.Automation.PSCredential -argumentlist $username, $securePassword
 
 # Connect to SharePoint Online
-Connect-PnPOnline -Url https://$tenant-admin.sharepoint.com -Credentials $cred
+Connect-PnPOnline -Url https://$tenant-admin.sharepoint.com -UseWebLogin
 
 # Get all site collections
 $sites = Get-PnPTenantSite
 
 foreach ($site in $sites) {
     # Connect to the site collection
-    Connect-PnPOnline -Url $site.Url -Credentials $cred
+    Connect-PnPOnline -Url $site.Url -UseWebLogin
 
     # Get all lists in the site collection
     $lists = Get-PnPList
