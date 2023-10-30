@@ -1,5 +1,5 @@
 # Import required modules
-Import-Module SharePointPnPPowerShellOnline
+Install-Module SharePointPnPPowerShellOnline
 
 # Set variables
 $tenant = "yourtenant"
