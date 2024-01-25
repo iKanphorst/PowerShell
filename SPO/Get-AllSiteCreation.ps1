@@ -1,14 +1,14 @@
 #Parameters
-$TenantURL =  "https://crescent.sharepoint.com"
+$TenantURL =  "https://kanphorst.sharepoint.com"
   
 #Get Credentials to connect
-$Credential = Get-Credential
+#$Credential = Get-Credential
   
 #Frame Tenant Admin URL from Tenant URL
 $TenantAdminURL = $TenantURL.Insert($TenantURL.IndexOf("."),"-admin")
  
 #Connect to Admin Center
-Connect-PnPOnline -Url $TenantAdminURL -Credentials $Credential
+Connect-PnPOnline -Url $TenantAdminURL -UseWebLogin
   
 #Get All Site collections - Filter BOT and MySite Host
 $Sites = Get-PnPTenantSite -Filter "Url -like '$TenantURL'"
@@ -16,9 +16,7 @@ $Sites = Get-PnPTenantSite -Filter "Url -like '$TenantURL'"
 #Iterate through all sites
 $SiteInventory = @()
 $Sites | ForEach-Object {
-    #Connect to each site collection
-    Connect-PnPOnline -Url $_.URL -Credentials $Credential
- 
+
     #Get the Root Web with "created" property
     $Web = Get-PnPWeb -Includes Created
  
