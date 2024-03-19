@@ -1,0 +1,16 @@
+$Results = @()
+$AllSC = Get-PnPTenantSite
+
+foreach ($SC in $AllSC){
+    Write-Host "Connecting to" $SC.Url -ForegroundColor Green
+      
+    Connect-PnPOnline -Url ($SC).Url -Credentials $creds    
+    $Policy = Get-PnPSitePolicy
+    $SCProps = @{
+        Url = $SC.Url
+        Name = $Policy.Name
+        Description = $Policy.Description
+    }
+    $Results += New-Object PSObject -Property $SCProps
+} 
+$Results | Select-Object Url, Name, Description
