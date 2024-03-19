@@ -18,5 +18,5 @@ foreach ($site in $sites) {
     }
 }
 
-# Disconnect from SharePoint Online
+# Disconnect from SharePoint
 Disconnect-SPOService
