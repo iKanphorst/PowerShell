@@ -3,8 +3,6 @@ Install-Module SharePointPnPPowerShellOnline -Force
 
 # Import the SharePointPnPPowerShellOnline module
 Import-Module SharePointPnPPowerShellOnline
-$appID = "b14b9f1b-6477-4965-ae90-298a683db40c"
-$tenantID = "2ae0b8df-0c06-44f2-a971-d5b959c62e5f"
 
 # Connect to SharePoint Online (you will be prompted to enter credentials)
 Connect-PnPOnline -Tenant m365ace.onmicrosoft.com -ClientId "b14b9f1b-6477-4965-ae90-298a683db40c" -Thumbprint 5E28FC22260A069426C5D4B32C733C95F5306EAC -Url https://m365ace.sharepoint.com
