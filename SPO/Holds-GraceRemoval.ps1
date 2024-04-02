@@ -16,7 +16,7 @@ foreach ($site in $siteCollections) {
     Write-Host "Processing site:" $site.Url
     
     # Connect to the site collection
-    Connect-PnPOnline -Url $site.Url -ClientID "b14b9f1b-6477-4965-ae90-298a683db40c" -ClientSecret "AXP8Q~xyN8TKFm6Vt3JGChA7pBoNMpxnjtJrPbcy"
+    Connect-PnPOnline -Url $site.Url -ClientID "b14b9f1b-6477-4965-ae90-298a683db40c" -Thumbprint 5E28FC22260A069426C5D4B32C733C95F5306EAC 
     
     # Retrieve the access token to authenticate with Microsoft Graph
     $accessToken = Get-PnPGraphAccessToken
