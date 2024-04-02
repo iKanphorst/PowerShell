@@ -3,14 +3,11 @@ Install-Module SharePointPnPPowerShellOnline -Force
 
 # Import the SharePointPnPPowerShellOnline module
 Import-Module SharePointPnPPowerShellOnline
-
-param (
-    [Parameter(Mandatory)]
-    [string]$CentralURL
-)
+$appID = "b14b9f1b-6477-4965-ae90-298a683db40c"
+$tenantID = "2ae0b8df-0c06-44f2-a971-d5b959c62e5f"
 
 # Connect to SharePoint Online (you will be prompted to enter credentials)
-Connect-PnPOnline -Url "https://"+$CentralURL -Interactive
+Connect-PnPOnline -Url "https://m365ace.sharepoint.com" -ClientID "b14b9f1b-6477-4965-ae90-298a683db40c" -ClientSecret "AXP8Q~xyN8TKFm6Vt3JGChA7pBoNMpxnjtJrPbcy"
 
 # Get all site collections
 $siteCollections = Get-PnPTenantSite
@@ -20,10 +17,10 @@ foreach ($site in $siteCollections) {
     Write-Host "Processing site:" $site.Url
     
     # Connect to the site collection
-    Connect-PnPOnline -Url $site.Url -UseWebLogin
+    Connect-PnPOnline -Url $site.Url -ClientID "b14b9f1b-6477-4965-ae90-298a683db40c" -ClientSecret "AXP8Q~xyN8TKFm6Vt3JGChA7pBoNMpxnjtJrPbcy"
     
     # Retrieve the access token to authenticate with Microsoft Graph
-    $accessToken = Get-PnPGraphAccessToken
+    $accessToken = Get-PnPGraphAccessToken 
 
     # Define the endpoint to retrieve the holds
     $uri = "https://graph.microsoft.com/v1.0/sites/$($site.Url)/holds"
