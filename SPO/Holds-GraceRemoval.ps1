@@ -7,10 +7,11 @@ $appID = "b14b9f1b-6477-4965-ae90-298a683db40c"
 $tenantID = "2ae0b8df-0c06-44f2-a971-d5b959c62e5f"
 
 # Connect to SharePoint Online (you will be prompted to enter credentials)
-Connect-PnPOnline -Url "https://m365ace.sharepoint.com" -ClientID "b14b9f1b-6477-4965-ae90-298a683db40c" -ClientSecret "AXP8Q~xyN8TKFm6Vt3JGChA7pBoNMpxnjtJrPbcy"
+Connect-PnPOnline -Tenant m365ace.onmicrosoft.com -ClientId "b14b9f1b-6477-4965-ae90-298a683db40c" -Thumbprint 5E28FC22260A069426C5D4B32C733C95F5306EAC -Url https://m365ace.sharepoint.com
 
+    
 # Get all site collections
-$siteCollections = Get-PnPTenantSite
+$siteCollections = Get-PnPTenantSite -Detailed
 
 # Loop through each site collection
 foreach ($site in $siteCollections) {
@@ -20,7 +21,7 @@ foreach ($site in $siteCollections) {
     Connect-PnPOnline -Url $site.Url -ClientID "b14b9f1b-6477-4965-ae90-298a683db40c" -ClientSecret "AXP8Q~xyN8TKFm6Vt3JGChA7pBoNMpxnjtJrPbcy"
     
     # Retrieve the access token to authenticate with Microsoft Graph
-    $accessToken = Get-PnPGraphAccessToken 
+    $accessToken = Get-PnPGraphAccessToken
 
     # Define the endpoint to retrieve the holds
     $uri = "https://graph.microsoft.com/v1.0/sites/$($site.Url)/holds"
@@ -36,7 +37,7 @@ foreach ($site in $siteCollections) {
             # Define the endpoint to remove the hold
             $removeUri = "https://graph.microsoft.com/v1.0/sites/$($site.Url)/holds/$($hold.id)"
             # Invoke the REST API to remove the hold
-            Invoke-RestMethod -Uri $removeUri -Headers @{Authorization = "Bearer $($accessToken.AccessToken)"} -Method Delete -Verbose
+            #Invoke-RestMethod -Uri $removeUri -Headers @{Authorization = "Bearer $($accessToken.AccessToken)"} -Method Delete -Verbose
         }
     }
     
