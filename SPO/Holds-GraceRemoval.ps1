@@ -3,9 +3,9 @@ Install-Module SharePointPnPPowerShellOnline -Force
 
 # Import the SharePointPnPPowerShellOnline module
 Import-Module SharePointPnPPowerShellOnline
-
+$tenantName = "m365ace.onmicrosoft.com"
 # Connect to SharePoint Online (you will be prompted to enter credentials)
-Connect-PnPOnline -Url "https://m365ace.sharepoint.com" -Tenant "m365ace.onmicrosoft.com" -Thumbprint 5E28FC22260A069426C5D4B32C733C95F5306EAC
+Connect-PnPOnline -tenant $tenantName -Url "https://m365ace.sharepoint.com" -ClientID "b14b9f1b-6477-4965-ae90-298a683db40c" -Tenant "m365ace.onmicrosoft.com" -Thumbprint 5E28FC22260A069426C5D4B32C733C95F5306EAC
 
 # Get all site collections
 $siteCollections = Get-PnPTenantSite
@@ -15,7 +15,7 @@ foreach ($site in $siteCollections) {
     Write-Host "Processing site:" $site.Url
     
     # Connect to the site collection
-    Connect-PnPOnline -Url $site.Url -ClientID "b14b9f1b-6477-4965-ae90-298a683db40c" -Thumbprint 5E28FC22260A069426C5D4B32C733C95F5306EAC 
+    Connect-PnPOnline -Tenant $tenantName -Url $site.Url -ClientID "b14b9f1b-6477-4965-ae90-298a683db40c" -Thumbprint 5E28FC22260A069426C5D4B32C733C95F5306EAC 
     
     # Retrieve the access token to authenticate with Microsoft Graph
     $accessToken = Get-PnPGraphAccessToken 
