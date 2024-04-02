@@ -20,7 +20,7 @@ foreach ($site in $siteCollections) {
     Write-Host "Processing site:" $site.Url
     
     # Connect to the site collection
-    Connect-PnPOnline -Url $site.Url -Interactive
+    Connect-PnPOnline -Url $site.Url -UseWebLogin
     
     # Retrieve the access token to authenticate with Microsoft Graph
     $accessToken = Get-PnPGraphAccessToken
@@ -35,11 +35,11 @@ foreach ($site in $siteCollections) {
     foreach ($hold in $holds.value) {
         # Check if the hold is in the grace period
         if ($hold.status -eq "Pending") {
-            Write-Host "Removing hold:" $hold.displayName
+            Write-Host "Removing hold:" $hold.displayName -ForegroundColor Yellow
             # Define the endpoint to remove the hold
             $removeUri = "https://graph.microsoft.com/v1.0/sites/$($site.Url)/holds/$($hold.id)"
             # Invoke the REST API to remove the hold
-            Invoke-RestMethod -Uri $removeUri -Headers @{Authorization = "Bearer $($accessToken.AccessToken)"} -Method Delete
+            Invoke-RestMethod -Uri $removeUri -Headers @{Authorization = "Bearer $($accessToken.AccessToken)"} -Method Delete -Verbose
         }
     }
     
