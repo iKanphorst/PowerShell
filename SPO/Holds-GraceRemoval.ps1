@@ -1,11 +1,16 @@
 # Install the SharePointPnPPowerShellOnline module if you haven't already
-# Install-Module SharePointPnPPowerShellOnline -Force
+Install-Module SharePointPnPPowerShellOnline -Force
 
 # Import the SharePointPnPPowerShellOnline module
 Import-Module SharePointPnPPowerShellOnline
 
+param (
+    [Parameter(Mandatory)]
+    [string]$CentralURL
+)
+
 # Connect to SharePoint Online (you will be prompted to enter credentials)
-Connect-PnPOnline -Url "https://yourtenant.sharepoint.com" -Interactive
+Connect-PnPOnline -Url "https://"+$CentralURL -Interactive
 
 # Get all site collections
 $siteCollections = Get-PnPTenantSite
