@@ -9,21 +9,21 @@ $openFileDialog.Title = "Select CSV File"
 # Show the dialog box and check if the user clicked OK
 $null = $openFileDialog.ShowDialog()
 
-if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+if ($result -eq [System.Windows.Forms.DialogResult]::Open) {
     # Get the selected CSV file path
     $csvFilePath = $openFileDialog.FileName
     
     # Import the CSV file
-    $csvData = Import-Csv -Path $csvFilePath
+    $csvData = Import-CSV -Path $csvFilePath -Verbose
     
     # Display the content of the imported CSV file
-    Write-Host "CSV file '$csvFilePath' imported successfully. Content:"
-    $csvData
+    Write-Host ("CSV file {0} imported successfully. Number of sites loaded: {1}`n" -f $csvFilePath, ($csvData | Measure-Object).Count) -ForegroundColor Yellow
 } else {
     Write-Host "No file selected."
 }
 #Parameter
-Write-Host "Type the policy name to have the imported sites added to the eclusion list." -ForegroundColor Yellow
+Write-Information -MessageData $
+Write-Host "Type the policy name to have the imported sites added to the eclusion list.`n" -ForegroundColor Yellow
 $PolicyName = Read-Host 
  
 Try {
