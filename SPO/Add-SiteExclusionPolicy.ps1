@@ -14,7 +14,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::Open) {
     $csvFilePath = $openFileDialog.FileName
     
     # Import the CSV file
-    $csvData = Import-CSV -Path $csvFilePath -Verbose
+    $csvData = Import-CSV -Path $csvFilePath
     
     # Display the content of the imported CSV file
     Write-Host ("CSV file {0} imported successfully. Number of sites loaded: {1}`n" -f $csvFilePath, ($csvData | Measure-Object).Count) -ForegroundColor Yellow
