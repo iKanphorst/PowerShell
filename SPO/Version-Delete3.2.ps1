@@ -11,7 +11,7 @@ function Connect-SharePoint {
     }
 
 # Function to delete older versions of files
-function Delete-OlderVersions {
+function Remove-OlderVersions {
     param (
         [string]$SiteUrl,
         [int]$VersionsToKeep,
@@ -23,28 +23,25 @@ function Delete-OlderVersions {
     $lists = Get-PnPList | Where-Object {($_.basetemplate -eq 101) -and ($_.EntityTypeName -like "*Documents*")}
     foreach ($list in $lists) {
         Write-Host ("Gathering items under the PNP List {0}" -f $list.Title) -ForegroundColor Yellow
-        $items = Get-PnPListItem -List $list.Title -ErrorAction SilentlyContinue
-        foreach ($item in $items) {
-            Write-Host ("Gathering files under folder {0}" -f $item.FieldValues.FileRef) -ForegroundColor Yellow
-            $files = Get-PnPFolderItem -Identity $item.FieldValues.FileRef -ErrorAction SilentlyContinue
-            foreach ($file in $files){
-                Write-Host ("Gathering file versions for file {0}" -f $file.ServerRelativeUrl) -ForegroundColor Yellow
-                $versions = Get-PnPFileVersion -url $file.ServerRelativeUrl -ErrorAction SilentlyContinue
-                $totalVersions = $versions.Count
-                if ($totalVersions -ge $VersionsToKeep) {
-                    $versionsToDelete = $totalVersions - $VersionsToKeep
-                    $lastModified = $file.TimeLastModified
-                    $threeMonthsAgo = (Get-Date).AddMonths(-3)
-                    if ($lastModified -lt $threeMonthsAgo) {
-                        for ($i = 0; $i -lt $versionsToDelete; $i++) {
-                            $version = $versions[$i]
-                            $sizeDeleted += $version.Size
-                            #Remove-PnPFileVersion -File $file.ServerRelativeUrl -VersionLabel $version.VersionLabel
-                        }
-                        $filesDeleted++
-                        $versionsDeleted += $versionsToDelete
-                        Add-Content -Path $LogFile -Value "$($file.ServerRelativeUrl), Versions deleted: $versionsToDelete"
+        Write-Host ("Gathering files under folder {0}" -f $list.Title) -ForegroundColor Yellow
+        $files = Get-PnPFolderItem -Identity $list.Title -ErrorAction SilentlyContinue
+        foreach ($file in $files){
+            Write-Host ("Gathering file versions for file {0}" -f $file.ServerRelativeUrl) -ForegroundColor Yellow
+            $versions = Get-PnPFileVersion -url $file.ServerRelativeUrl -ErrorAction SilentlyContinue
+            $totalVersions = $versions.Count
+            if ($totalVersions -ge $VersionsToKeep) {
+                $versionsToDelete = $totalVersions - $VersionsToKeep
+                $lastModified = $file.TimeLastModified
+                $threeMonthsAgo = (Get-Date).AddMonths(-3)
+                if ($lastModified -lt $threeMonthsAgo) {
+                    for ($i = 0; $i -lt $versionsToDelete; $i++) {
+                        $version = $versions[$i]
+                        $sizeDeleted += $version.Size
+                        #Remove-PnPFileVersion -File $file.ServerRelativeUrl -VersionLabel $version.VersionLabel
                     }
+                    $filesDeleted++
+                    $versionsDeleted += $versionsToDelete
+                    Add-Content -Path $LogFile -Value "$($file.ServerRelativeUrl), Versions deleted: $versionsToDelete"
                 }
             }
         }
@@ -55,14 +52,14 @@ function Delete-OlderVersions {
     Write-Host "Total size deleted (bytes): $sizeDeleted"
 }
 # Main script
-$AdminSiteUrl = "https://kanphorst-admin.sharepoint.com"
+$AdminSiteUrl = "https://tjmt-admin.sharepoint.com"
 $Sites = import-csv -Path "D:\SPOSites\SharePointSites.csv"
 $VersionsToKeep = 1
 $LogFileDeletedVersions = "D:\SPOSites\SharepointLog.txt"
 Connect-SharePoint -AdminSiteUrl $AdminSiteUrl
 $deletedVersionsLog = @()
 Foreach ($site in $sites) {
-    $deletedVersionsLog += Delete-OlderVersions -SiteUrl $Site.url -VersionsToKeep $VersionsToKeep -LogFile $LogFileDeletedVersions
+    $deletedVersionsLog += Remove-OlderVersions -SiteUrl $Site.url -VersionsToKeep $VersionsToKeep -LogFile $LogFileDeletedVersions
 }
 $deletedVersionsLog | Out-File -FilePath $LogFileDeletedVersions
 Write-Host "Log files created:"
