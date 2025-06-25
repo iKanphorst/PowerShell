@@ -1,0 +1,8 @@
+ComputerName,Description,Department
+DESKTOP-001,Primary workstation,IT
+DESKTOP-002,Developer workstation,Development
+DESKTOP-003,Finance workstation,Finance
+LAPTOP-001,IT Admin laptop,IT
+LAPTOP-002,Executive laptop,Executive
+SERVER-001,Application server,IT
+SERVER-002,Database server,IT
